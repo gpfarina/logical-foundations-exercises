@@ -2,7 +2,7 @@
 
 Set Warnings "-notation-overridden,-parsing".
 Require Export Tactics.
-
+Require Export Poly.
 (** In previous chapters, we have seen many examples of factual
     claims (_propositions_) and ways of presenting evidence of their
     truth (_proofs_).  In particular, we have worked extensively with
@@ -594,20 +594,57 @@ Qed.
 Theorem iff_refl : forall P : Prop,
   P <-> P.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros.
+  split.
+  intros.
+  apply H.
+  intros.
+  apply H.
+Qed.
 
-Theorem iff_trans : forall P Q R : Prop,
+
+  Theorem iff_trans : forall P Q R : Prop,
   (P <-> Q) -> (Q <-> R) -> (P <-> R).
 Proof.
-  (* FILL IN HERE *) Admitted.
-(** [] *)
+  intros.
+  destruct H.
+  destruct H0.
+  split.
+  intros.
+apply H in H3.  
+apply H0 in H3.
+apply H3.
+intros.
+apply H2 in H3.
+apply H1 in H3.
+apply H3.
+Qed.
+
 
 (** **** Exercise: 3 stars (or_distributes_over_and)  *)
 Theorem or_distributes_over_and : forall P Q R : Prop,
   P \/ (Q /\ R) <-> (P \/ Q) /\ (P \/ R).
 Proof.
-  (* FILL IN HERE *) Admitted.
-(** [] *)
+  intros.  
+  split.
+  
+  intros.
+  inversion H.
+  split.
+  left. apply H0.
+  left. apply H0.
+  split.
+  destruct H0.
+  right. apply H0.
+  destruct H0. right. apply H1.
+  intros. 
+  destruct H as [[HP1 | HQ] [HP2 | HR]].
+  left. apply HP1.
+  left.  apply HP1.
+  left. apply HP2.
+  right. split. apply HQ. apply HR.
+Qed.
+
 
 (** Some of Coq's tactics treat [iff] statements specially, avoiding
     the need for some low-level proof-state manipulation.  In
@@ -695,8 +732,8 @@ Theorem exists_example_2 : forall n,
 Proof.
   (* WORKED IN CLASS *)
   intros n [m Hm]. (* note implicit [destruct] here *)
-  exists (2 + m).
-  apply Hm.  Qed.
+  exists (2 + m). simpl.
+simpl in Hm.  apply Hm.  Qed.
 
 (** **** Exercise: 1 star, recommended (dist_not_exists)  *)
 (** Prove that "[P] holds for all [x]" implies "there is no [x] for
@@ -706,9 +743,12 @@ Proof.
 Theorem dist_not_exists : forall (X:Type) (P : X -> Prop),
   (forall x, P x) -> ~ (exists x, ~ P x).
 Proof.
-  (* FILL IN HERE *) Admitted.
-(** [] *)
-
+  intros.
+  unfold not.
+  intros. destruct H0.
+  apply H0 in H.
+  apply H.
+Qed.
 (** **** Exercise: 2 stars (dist_exists_or)  *)
 (** Prove that existential quantification distributes over
     disjunction. *)
@@ -716,8 +756,28 @@ Proof.
 Theorem dist_exists_or : forall (X:Type) (P Q : X -> Prop),
   (exists x, P x \/ Q x) <-> (exists x, P x) \/ (exists x, Q x).
 Proof.
-   (* FILL IN HERE *) Admitted.
-(** [] *)
+intros.
+split.
+intros.
+destruct H.
+destruct H.
+left.
+exists x.
+apply H.
+right.
+exists x.
+apply H.
+intros.
+destruct H.
+destruct H.
+exists x.
+left. 
+apply H.
+destruct H.
+exists x.
+right.
+apply H.
+Qed.
 
 (* ################################################################# *)
 (** * Programming with Propositions *)
@@ -738,8 +798,8 @@ Proof.
 
 Fixpoint In {A : Type} (x : A) (l : list A) : Prop :=
   match l with
-  | [] => False
-  | x' :: l' => x' = x \/ In x l'
+  | nil => False
+  | cons x' l' => x' = x \/ In x l'
   end.
 
 (** When [In] is applied to a concrete list, it expands into a
@@ -755,11 +815,17 @@ Example In_example_2 :
   forall n, In n [2; 4] ->
   exists n', n = 2 * n'.
 Proof.
-  (* WORKED IN CLASS *)
+  intros.
+  simpl in H.
+  destruct H as [H | [H | H]].
+  exists 1.
   simpl.
-  intros n [H | [H | []]].
-  - exists 1. rewrite <- H. reflexivity.
-  - exists 2. rewrite <- H. reflexivity.
+  symmetry.
+  apply H.
+  exists 2.
+  simpl.
+  symmetry. apply H.
+  inversion H.
 Qed.
 (** (Notice the use of the empty pattern to discharge the last case
     _en passant_.) *)
@@ -798,17 +864,83 @@ Lemma In_map_iff :
     In y (map f l) <->
     exists x, f x = y /\ In x l.
 Proof.
-  (* FILL IN HERE *) Admitted.
-(** [] *)
+  split.
+  intros.
+  induction l.
+  simpl in H.
+  inversion H.
+  simpl In in H.
+  destruct H.
+  exists x.
+  split.
+  apply H.
+  simpl.
+  left.
+  reflexivity.
+  apply IHl in H.
+  destruct H.
+  exists x0.
+  destruct H.
+  split.
+  apply H.
+  simpl. 
+  right. apply H0.
+
+induction l.
+- intros.
+  destruct H.
+  inversion H.
+  inversion H1.
+- 
+  simpl.
+  intros.
+  generalize dependent IHl.
+  destruct H.
+  destruct H.
+  destruct H0.
+  intros.
+  rewrite H0.
+  left. apply H.
+  intros.
+  right.
+  apply IHl.
+  exists x0.
+  split. apply H. apply H0.
+Qed.
+
 
 (** **** Exercise: 2 stars (In_app_iff)  *)
 Lemma In_app_iff : forall A l l' (a:A),
   In a (l++l') <-> In a l \/ In a l'.
 Proof.
-  (* FILL IN HERE *) Admitted.
-(** [] *)
-
-(** **** Exercise: 3 stars, recommended (All)  *)
+split.
+- intros.
+induction l.
++ simpl in H. right.  apply H.
++ simpl. simpl in H.
+  destruct H.
+  left. left. apply H.
+  rewrite <- or_assoc.
+  right.
+  apply IHl.
+  apply H.
+-
+  intros.
+  induction l.
+ + simpl.
+  destruct H.
+  inversion H.
+  apply H.
+ + simpl.
+   destruct H.
+   destruct H.
+   left. apply H.
+   right. apply IHl. 
+   left. apply H.
+   right. apply IHl.
+   right. apply H.
+Qed.   
+   (** **** Exercise: 3 stars, recommended (All)  *)
 (** Recall that functions returning propositions can be seen as
     _properties_ of their arguments. For instance, if [P] has type
     [nat -> Prop], then [P n] states that property [P] holds of [n].
